@@ -1,0 +1,19 @@
+Guardar aquí los WSDL de AFIP/ARCA descargados manualmente desde el navegador.
+
+Archivos necesarios
+-------------------
+
+1. personaServiceA13.wsdl
+   URL producción : https://awis.afip.gov.ar/sr-padron/webservices/personaServiceA13?wsdl
+   URL homo       : https://awishomo.afip.gov.ar/sr-padron/webservices/personaServiceA13?wsdl
+
+2. LoginCms.wsdl
+   URL producción : https://wsaa.afip.gov.ar/ws/services/LoginCms?wsdl
+   URL homo       : https://wsaahomo.afip.gov.ar/ws/services/LoginCms?wsdl
+
+Pasos
+-----
+1. Abrir la URL correspondiente en el navegador (Chrome, Edge, etc.)
+2. Ctrl+S → guardar como "Página web, solo HTML" (o copiar todo el texto)
+3. Renombrar el archivo con el nombre indicado arriba
+4. Copiarlo en esta carpeta (api/wsdl/)

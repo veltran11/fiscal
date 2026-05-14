@@ -1,0 +1,12 @@
+{
+  "name": "fiscal",
+  "version": "1.0.0",
+  "scripts": {
+    "dev":   "tailwindcss -i ./public/css/in.css -o ./public/css/out.css --watch",
+    "build": "tailwindcss -i ./public/css/in.css -o ./public/css/out.css --minify"
+  },
+  "devDependencies": {
+    "@tailwindcss/cli": "^4.0.0",
+    "tailwindcss": "^4.0.0"
+  }
+}

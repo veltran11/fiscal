@@ -1,0 +1,44 @@
+@import "tailwindcss";
+
+@layer base {
+  *, ::before, ::after {
+    border-color: var(--color-gray-300);
+ }
+
+ i {@apply opacity-50;}
+}
+
+*:not(i) {
+  font-family: 'Montserrat', sans-serif;
+}
+
+.inner { 
+  /* el div padre de cada pagina */
+  @apply h-full max-w-2xl mx-auto;
+}
+
+.frame {
+  @apply border rounded-lg shadow;
+}
+
+.grd-out {
+  @apply h-full bg-white overflow-y-auto;
+}
+
+.grd {
+   @apply grid *:p-4 *:hover:bg-gray-100 *:cursor-pointer;
+}
+
+.fld label {
+  @apply text-xs text-gray-700 whitespace-nowrap;
+}
+
+.fld input, .fld select, .fld textarea {
+  @apply border rounded px-3 py-2;
+}
+
+.btns {
+  @apply flex items-center gap-4 mt-4 *:px-3 *:py-2 *:border *:rounded *:bg-gray-100 *:cursor-pointer *:hover:bg-gray-200 *:flex *:items-center *:gap-3;
+}
+
+.tit i { @apply md:hidden }
