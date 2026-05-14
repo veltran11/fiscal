@@ -1,36 +1,56 @@
-import { BaseView }         from './BaseView.js';
-import { ClientesView }     from './ClientesView.js';
-import { MiCuentaView }     from './MiCuentaView.js';
+import { BaseView } from './BaseView.js';
+import { eventBus } from '../utils/EventBus.js';
+import { ClientesView } from './ClientesView.js';
+import { ClienteFormView } from './ClienteFormView.js';
+import { FacturasView } from './FacturasView.js';
+import { FacturaFormView } from './FacturaFormView.js';
+import { MiCuentaView } from './MiCuentaView.js';
 import { CertificadosView } from './CertificadosView.js';
 
 const SUB_VIEWS = {
-  'clientes':     ClientesView,
-  'mi-cuenta':    MiCuentaView,
+  'clientes': ClientesView,
+  'cliente-form': ClienteFormView,
+  'facturas': FacturasView,
+  'factura-form': FacturaFormView,
+  'mi-cuenta': MiCuentaView,
   'certificados': CertificadosView,
 };
 
 const MD = 768;
 
 export class DashboardView extends BaseView {
-  #views      = new Map(); // ViewClass → { instance, el }
-  #current    = null;      // ViewClass actualmente visible
-  #history    = [];        // stack de ViewClass
-  #sidebar    = null;
-  #outlet2    = null;
-  #backBtn    = null;
+  #views = new Map(); // ViewClass → { instance, el }
+  #current = null;      // ViewClass actualmente visible
+  #history = [];        // stack de ViewClass
+  #sidebar = null;
+  #outlet2 = null;
+  #backBtn = null;
   #backHandler = null;
-  #mq         = null;
+  #mq = null;
   #mqListener = null;
 
   template() {
     return `
       <div class="flex h-full">
-        <aside id="db-sidebar" class="md:mr-4 w-full md:w-80 md:shrink-0 flex flex-col">
-          <h2 class="text-lg font-semibold mb-2">Menú</h2>
+        <aside id="db-sidebar" class="md:mr-4 w-full md:w-60 md:shrink-0 flex flex-col gap-4">
+          <h2 class="tit">Menú</h2>
           <div class="frame grd-out">
-            <nav class="grd grid-cols-1 divide-y">
-              <a href="#" data-route="clientes">Clientes</a>
-              <a href="#" data-route="mi-cuenta">Mi cuenta</a>
+            <nav class="grd rows grid-cols-1">
+              <div class="contents">
+                <div><a href="#" data-route="clientes" class="w-full">Clientes</a></div>
+              </div>
+
+              <div class="contents">
+                <div><a href="#" data-route="facturas" class="w-full">Facturas</a></div>
+              </div>
+              
+              <div class="contents">
+                <div><a href="#" data-route="mi-cuenta">Mi cuenta</a></div>
+              </div>
+              
+              <div class="contents">
+                <div><a href="#" data-route="logout">Cerrar sesión</a></div>
+              </div>
             </nav>
           </div>
         </aside>
@@ -53,12 +73,20 @@ export class DashboardView extends BaseView {
     this.#mq.addEventListener('change', this.#mqListener);
 
     this.outlet.addEventListener('click', e => {
-      const el = e.target.closest('[data-route]');
+      const el = e.target.closest('[data-route], .contents');
       if (!el) return;
       e.preventDefault();
-      const ViewClass = SUB_VIEWS[el.dataset.route];
+      const link = el.dataset.route ? el : el.querySelector('[data-route]');
+      if (!link) return;
+
+      if (link.dataset.route === 'logout') {
+        eventBus.emit('auth:logout');
+        return;
+      }
+
+      const ViewClass = SUB_VIEWS[link.dataset.route];
       if (!ViewClass) return;
-      if (this.#sidebar.contains(el)) this.#history = [];
+      if (this.#sidebar.contains(link)) this.#history = [];
       this.#go(ViewClass);
     });
   }
@@ -80,6 +108,7 @@ export class DashboardView extends BaseView {
     const entry = this.#getOrCreate(ViewClass);
     entry.el.classList.remove('hidden');
     this.#current = ViewClass;
+    entry.instance.onShow?.();
 
     if (window.innerWidth < MD) {
       this.#sidebar.classList.add('hidden');
@@ -101,6 +130,7 @@ export class DashboardView extends BaseView {
     if (prev) {
       this.#views.get(prev)?.el.classList.remove('hidden');
       this.#current = prev;
+      this.#views.get(prev)?.instance.onShow?.();
       this.#attachBackBtn();
     } else {
       this.#current = null;
@@ -119,7 +149,7 @@ export class DashboardView extends BaseView {
 
     const id = `db-view-${this.#views.size}`;
     const el = document.createElement('div');
-    el.id        = id;
+    el.id = id;
     el.className = 'h-full w-full overflow-hidden hidden';
     this.#outlet2.appendChild(el);
 
@@ -148,7 +178,7 @@ export class DashboardView extends BaseView {
       this.#backBtn.removeEventListener('click', this.#backHandler);
       this.#backBtn.classList.remove('cursor-pointer');
     }
-    this.#backBtn    = null;
+    this.#backBtn = null;
     this.#backHandler = null;
   }
 

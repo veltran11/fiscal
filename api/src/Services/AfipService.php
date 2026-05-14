@@ -4,207 +4,393 @@ namespace App\Services;
 
 class AfipService
 {
-    private const WSAA_PROD   = 'https://wsaa.afip.gov.ar/ws/services/LoginCms?wsdl';
-    private const WSAA_HOMO   = 'https://wsaahomo.afip.gov.ar/ws/services/LoginCms?wsdl';
+    private string $wsaaUrl;
+    private string $padronUrl;
+    private string $wsfeUrl;
+    private string $cuit;
+    private string $certPem;
+    private string $keyPem;
+    private bool   $prod;
 
-    // Padrón A13 SOAP — aws.afip.gov.ar (distinto a awis que está caído)
-    private const PADRON_PROD = 'https://aws.afip.gov.ar/sr-padron/webservices/personaServiceA13?wsdl';
-    private const PADRON_HOMO = 'https://awshomo.afip.gov.ar/sr-padron/webservices/personaServiceA13?wsdl';
-
-    // Factura Electrónica (wsfe) — para puntos de venta
-    private const WSFE_PROD   = 'https://servicios1.afip.gov.ar/wsfev1/service.asmx?WSDL';
-    private const WSFE_HOMO   = 'https://wswhomo.afip.gov.ar/wsfev1/service.asmx?WSDL';
-
-    private bool  $prod;
-    private array $soapOpts;
-    private array $sslCtxOpts = [
-        'ssl'  => ['verify_peer' => false, 'verify_peer_name' => false],
-        'http' => ['timeout' => 30],
-    ];
-
-    public function __construct(bool $produccion = false)
+    public function __construct(bool $produccion, string $cuit, string $certPem = '', string $keyPem = '')
     {
-        $this->prod     = $produccion;
-        $this->soapOpts = [
-            'cache_wsdl'         => WSDL_CACHE_NONE,
-            'connection_timeout' => 30,
-            'stream_context'     => stream_context_create($this->sslCtxOpts),
-        ];
+        $this->prod    = $produccion;
+        $this->cuit    = preg_replace('/\D/', '', $cuit);
+        $this->certPem = $certPem;
+        $this->keyPem  = $keyPem;
+        $this->wsaaUrl   = $produccion
+            ? 'https://wsaa.afip.gov.ar/ws/services/LoginCms'
+            : 'https://wsaahomo.afip.gov.ar/ws/services/LoginCms';
+        $this->padronUrl = 'file://' . __DIR__ . '/../../wsdl/personaServiceA13.wsdl';
+        $this->wsfeUrl   = 'file://' . __DIR__ . '/../../wsdl/wsfev1.wsdl';
     }
 
-    // ── Ticket de acceso (WSAA SOAP) ─────────────────────────────────────────
-
-    public function getTicket(string $certPem, string $keyPem, string $cuitNum, string $service = 'ws_sr_padron_a13'): array
+    public function isReady(): bool
     {
-        $cacheFile = sys_get_temp_dir() . "/afip_ta_{$cuitNum}_{$service}.json";
+        return $this->cuit !== '' && $this->certPem !== '' && $this->keyPem !== '';
+    }
 
-        if (file_exists($cacheFile)) {
-            $cached = json_decode(file_get_contents($cacheFile), true);
-            if ($cached && ($cached['expiry'] ?? 0) > time() + 60) {
-                return $cached;
-            }
+    // ── Cache TA ───────────────────────────────────────────────────────────
+
+    private function cacheFile(string $service): string
+    {
+        return sys_get_temp_dir() . '/afip_ta_' . $this->cuit . '_' . $service . '.json';
+    }
+
+    private function getCachedTA(string $service): ?array
+    {
+        $f = $this->cacheFile($service);
+        if (!file_exists($f)) return null;
+        $d = json_decode(file_get_contents($f), true);
+        if (!$d || ($d['expiry'] ?? 0) < time() + 60) return null;
+        return $d;
+    }
+
+    private function saveTA(array $ta, string $service): void
+    {
+        file_put_contents($this->cacheFile($service), json_encode([
+            'token'  => $ta['token'],
+            'sign'   => $ta['sign'],
+            'expiry' => $ta['expiry'] ?? (time() + 600),
+        ]));
+    }
+
+    // ── WSAA ───────────────────────────────────────────────────────────────
+
+    private function signTRA(string $tra): string
+    {
+        if (!$this->certPem || !$this->keyPem) {
+            throw new \RuntimeException('Certificado o clave privada no configurados.');
         }
 
-        $tra    = $this->buildTra($service);
-        $cms    = $this->signTra($tra, $certPem, $keyPem);
-        $wsdl   = $this->wsdlLocal($this->prod ? self::WSAA_PROD : self::WSAA_HOMO);
-        $client = new \SoapClient($wsdl, $this->soapOpts);
-        $res    = $client->loginCms(['in0' => $cms]);
+        $certFile = tempnam(sys_get_temp_dir(), 'afip_cert_');
+        $keyFile  = tempnam(sys_get_temp_dir(), 'afip_key_');
+        $traFile  = tempnam(sys_get_temp_dir(), 'afip_tra_');
+        $cmsFile  = tempnam(sys_get_temp_dir(), 'afip_cms_');
 
-        $xml    = new \SimpleXMLElement($res->loginCmsReturn);
-        $ticket = [
-            'token'  => (string) $xml->credentials->token,
-            'sign'   => (string) $xml->credentials->sign,
-            'expiry' => strtotime((string) $xml->header->expirationTime),
-        ];
+        try {
+            file_put_contents($certFile, $this->certPem);
+            file_put_contents($keyFile,  $this->keyPem);
+            file_put_contents($traFile, $tra);
 
-        file_put_contents($cacheFile, json_encode($ticket));
-        return $ticket;
+            $ok = openssl_pkcs7_sign(
+                $traFile,
+                $cmsFile,
+                'file://' . $certFile,
+                ['file://' . $keyFile, ''],
+                [],
+                PKCS7_NOCHAIN | PKCS7_BINARY
+            );
+            if (!$ok) {
+                throw new \RuntimeException('Error firmando TRA: ' . openssl_error_string());
+            }
+
+            $raw   = file_get_contents($cmsFile);
+            $parts = preg_split('/\r?\n\r?\n/', $raw, 2);
+            if (count($parts) < 2 || trim($parts[1] ?? '') === '') {
+                throw new \RuntimeException('No se pudo extraer el CMS del TRA.');
+            }
+            return str_replace(["\r", "\n", ' '], '', $parts[1]);
+        } finally {
+            @unlink($certFile);
+            @unlink($keyFile);
+            @unlink($traFile);
+            @unlink($cmsFile);
+        }
     }
 
-    // ── Padrón A13 (SOAP) ────────────────────────────────────────────────────
-
-    public function getPadron(string $token, string $sign, string $cuit): array
+    private function getTA(string $service): array
     {
-        $cuitNum = (int) preg_replace('/\D/', '', $cuit);
-        $wsdl    = $this->wsdlLocal($this->prod ? self::PADRON_PROD : self::PADRON_HOMO);
-        $client  = new \SoapClient($wsdl, $this->soapOpts);
+        $ta = $this->getCachedTA($service);
+        if ($ta) return $ta;
 
-        $res = $client->getPersona([
-            'token'            => $token,
-            'sign'             => $sign,
-            'cuitRepresentada' => $cuitNum,
-            'idPersona'        => $cuitNum,
+        $now     = time();
+        $genTime = date('c', $now - 60);
+        $expTime = date('c', $now + 600);
+        $tra = '<?xml version="1.0" encoding="UTF-8"?>'
+             . '<loginTicketRequest version="1.0">'
+             . '<header>'
+             . "<uniqueId>{$now}</uniqueId>"
+             . "<generationTime>{$genTime}</generationTime>"
+             . "<expirationTime>{$expTime}</expirationTime>"
+             . '</header>'
+             . "<service>{$service}</service>"
+             . '</loginTicketRequest>';
+
+        $b64 = $this->signTRA($tra);
+
+        $soap = '<?xml version="1.0" encoding="UTF-8"?>'
+              . '<SOAP-ENV:Envelope xmlns:SOAP-ENV="http://schemas.xmlsoap.org/soap/envelope/"'
+              . ' xmlns:ns1="http://wsaa.view.sua.dvadac.desein.afip.gov.ar">'
+              . '<SOAP-ENV:Body>'
+              . '<ns1:loginCms><ns1:in0>' . $b64 . '</ns1:in0></ns1:loginCms>'
+              . '</SOAP-ENV:Body>'
+              . '</SOAP-ENV:Envelope>';
+
+        $ch = curl_init($this->wsaaUrl);
+        curl_setopt_array($ch, [
+            CURLOPT_POST           => true,
+            CURLOPT_POSTFIELDS     => $soap,
+            CURLOPT_RETURNTRANSFER => true,
+            CURLOPT_HTTPHEADER     => [
+                'Content-Type: text/xml; charset=UTF-8',
+                'SOAPAction: ""',
+            ],
+            CURLOPT_SSL_VERIFYPEER => false,
+            CURLOPT_TIMEOUT        => 30,
         ]);
+        $resp   = curl_exec($ch);
+        $errno  = curl_errno($ch);
+        $errmsg = curl_error($ch);
+        curl_close($ch);
 
-        $persona = $res->personaReturn->persona ?? null;
-        if (!$persona) {
-            throw new \RuntimeException('ARCA no devolvió datos para ese CUIT.');
+        if ($errno || !$resp) {
+            throw new \RuntimeException('Error de red WSAA: ' . $errmsg);
         }
 
-        return $this->parsePadron($persona);
-    }
-
-    private function parsePadron(object $p): array
-    {
-        $tipo  = strtoupper((string) ($p->tipoPersona ?? ''));
-        $razon = $tipo === 'JURIDICA'
-            ? (string) ($p->razonSocial ?? '')
-            : trim((string) ($p->nombre ?? '') . ' ' . (string) ($p->apellido ?? ''));
-
-        $doms = $p->domicilio ?? [];
-        if (is_object($doms)) $doms = [$doms];
-
-        $dom = null;
-        foreach ($doms as $d) {
-            if (strtoupper((string) ($d->tipoDomicilio ?? '')) === 'FISCAL') {
-                $dom = $d;
-                break;
-            }
-        }
-        $dom = $dom ?? ($doms[0] ?? null);
-
-        if ($dom && !empty((string) ($dom->direccion ?? ''))) {
-            $dir = trim((string) $dom->direccion);
-        } elseif ($dom) {
-            $dir = trim(implode(' ', array_filter([
-                (string) ($dom->calle  ?? ''),
-                (string) ($dom->numero ?? ''),
-                ($dom->piso ?? '') !== '' ? 'P' . $dom->piso : '',
-                (string) ($dom->oficinaDptoLocal ?? ''),
-            ])));
-        } else {
-            $dir = '';
+        libxml_use_internal_errors(true);
+        $xml = simplexml_load_string($resp);
+        if ($xml === false) {
+            throw new \RuntimeException('WSAA devolvió XML no válido.');
         }
 
-        $inicio = null;
-        $f = (string) ($p->periodoActividadPrincipal ?? '');
-        if (strlen($f) === 6) {
-            $inicio = substr($f, 4, 2) . '/' . substr($f, 0, 4);
+        $faults = $xml->xpath('//*[local-name()="Fault"]');
+        if (!empty($faults)) {
+            $faultString = (string)($faults[0]->faultstring ?? $faults[0]->detail ?? 'Error desconocido');
+            throw new \RuntimeException('Error WSAA AFIP: ' . trim($faultString));
         }
 
-        return [
-            'razon_social'       => $razon,
-            'domicilio_fiscal'   => $dir,
-            'localidad'          => $dom ? (string) ($dom->localidad ?? $dom->descripcionProvincia ?? '') : '',
-            'codigo_postal'      => $dom ? (string) ($dom->codigoPostal ?? '') : '',
-            'inicio_actividades' => $inicio,
+        $results = $xml->xpath('//*[local-name()="loginCmsReturn"]');
+        if (empty($results)) {
+            throw new \RuntimeException('Respuesta inesperada WSAA.');
+        }
+
+        $taObj = new \SimpleXMLElement((string)$results[0]);
+        $ta = [
+            'token'  => (string)$taObj->credentials->token,
+            'sign'   => (string)$taObj->credentials->sign,
+            'expiry' => strtotime((string)$taObj->header->expirationTime),
         ];
+        $this->saveTA($ta, $service);
+        return $ta;
     }
 
-    // ── Puntos de venta (wsfe SOAP) ───────────────────────────────────────────
+    // ── Padrón A13 ─────────────────────────────────────────────────────────
 
-    public function getPuntosVenta(string $token, string $sign, string $cuit): array
+    public function getPadron(string $cuit): array
     {
-        $cuitNum = (int) preg_replace('/\D/', '', $cuit);
-        $wsdl    = $this->wsdlLocal($this->prod ? self::WSFE_PROD : self::WSFE_HOMO, 'wsfev1.wsdl');
-        $client  = new \SoapClient($wsdl, $this->soapOpts);
+        $cuitNum = preg_replace('/\D/', '', $cuit);
+        $ta      = $this->getTA('ws_sr_padron_a13');
 
-        $res    = $client->FEParamGetPtosVenta([
-            'Auth' => ['Token' => $token, 'Sign' => $sign, 'Cuit' => $cuitNum],
-        ]);
-        $result = $res->FEParamGetPtosVentaResult ?? null;
-        if (!$result) return [];
+        try {
+            $client = new \SoapClient($this->padronUrl, [
+                'stream_context'     => stream_context_create(['ssl' => ['verify_peer' => false, 'verify_peer_name' => false]]),
+                'cache_wsdl'         => WSDL_CACHE_NONE,
+                'exceptions'         => true,
+                'connection_timeout' => 20,
+            ]);
 
-        $pts = $result->ResultGet->PtoVenta ?? [];
-        if (is_object($pts)) $pts = [$pts];
+            $resp = $client->getPersona([
+                'token'            => $ta['token'],
+                'sign'             => $ta['sign'],
+                'cuitRepresentada' => (int)$this->cuit,
+                'idPersona'        => (int)$cuitNum,
+            ]);
 
-        $activos = [];
-        foreach ($pts as $pt) {
-            $baja = strtoupper(trim((string) ($pt->FchBaja ?? '')));
-            if ($baja === '' || $baja === 'NULL') {
-                $activos[] = (int) $pt->Nro;
+            $persona = $resp->personaReturn ?? null;
+            if (!$persona) {
+                throw new \RuntimeException('CUIT no encontrado en el padrón.');
             }
+
+            return json_decode(json_encode($persona), true);
+        } catch (\SoapFault $e) {
+            $msg = $e->getMessage();
+            if (preg_match('/no encontrad|sin resultado|0 result/i', $msg)) {
+                throw new \RuntimeException('CUIT no encontrado en el padrón.');
+            }
+            throw new \RuntimeException('Error padrón A13: ' . $msg);
         }
-        sort($activos);
-        return $activos;
     }
 
-    // ── WSAA helpers ─────────────────────────────────────────────────────────
+    // ── Puntos de venta ────────────────────────────────────────────────────
 
-    private function buildTra(string $service): string
+    public function getPuntosVenta(): array
     {
-        $tz  = new \DateTimeZone('America/Argentina/Buenos_Aires');
-        $gen = (new \DateTime('now', $tz))->modify('-10 minutes')->format('Y-m-d\TH:i:sP');
-        $exp = (new \DateTime('now', $tz))->modify('+10 minutes')->format('Y-m-d\TH:i:sP');
+        $ta = $this->getTA('wsfe');
 
-        return '<?xml version="1.0" encoding="UTF-8"?>'
-             . '<loginTicketRequest version="1.0"><header>'
-             . '<uniqueId>' . time() . '</uniqueId>'
-             . "<generationTime>{$gen}</generationTime>"
-             . "<expirationTime>{$exp}</expirationTime>"
-             . "</header><service>{$service}</service></loginTicketRequest>";
-    }
+        try {
+            $client = new \SoapClient($this->wsfeUrl, [
+                'stream_context'     => stream_context_create(['ssl' => ['verify_peer' => false, 'verify_peer_name' => false]]),
+                'cache_wsdl'         => WSDL_CACHE_NONE,
+                'exceptions'         => true,
+                'connection_timeout' => 20,
+            ]);
 
-    private function signTra(string $tra, string $certPem, string $keyPem): string
-    {
-        $tmpIn  = tempnam(sys_get_temp_dir(), 'tra_');
-        $tmpOut = tempnam(sys_get_temp_dir(), 'cms_');
+            $resp = $client->FEParamGetPtosVenta([
+                'Auth' => [
+                    'Token' => $ta['token'],
+                    'Sign'  => $ta['sign'],
+                    'Cuit'  => (int)$this->cuit,
+                ],
+            ]);
 
-        file_put_contents($tmpIn, $tra);
-        openssl_pkcs7_sign($tmpIn, $tmpOut, $certPem, $keyPem, [], PKCS7_BINARY | PKCS7_NOCHAIN);
-        $raw = file_get_contents($tmpOut);
+            $result = $resp->FEParamGetPtosVentaResult ?? null;
+            if (!$result || empty($result->ResultGet)) return [];
 
-        @unlink($tmpIn);
-        @unlink($tmpOut);
+            $items = $result->ResultGet->PtoVenta ?? [];
+            if (is_object($items)) $items = [$items];
 
-        $parts = preg_split('/\r?\n\r?\n/', $raw, 2);
-        return trim($parts[1] ?? $raw);
-    }
-
-    private function wsdlLocal(string $url, string $name = ''): string
-    {
-        if (!$name) {
-            $name = basename(parse_url($url, PHP_URL_PATH)) . '.wsdl';
+            $puntos = [];
+            foreach ($items as $p) {
+                $fchBaja = strtoupper(trim((string)($p->FchBaja ?? '')));
+                if ($fchBaja !== '' && $fchBaja !== 'NULL') continue;
+                $puntos[] = (int)$p->Nro;
+            }
+            sort($puntos);
+            return $puntos;
+        } catch (\SoapFault $e) {
+            throw new \RuntimeException('Error WSFE puntos de venta: ' . $e->getMessage());
         }
-        $local = __DIR__ . '/../../wsdl/' . $name;
+    }
 
-        if (file_exists($local)) return $local;
+    // ── Último comprobante ────────────────────────────────────────────────
 
-        throw new \RuntimeException(
-            "WSDL no encontrado en api/wsdl/{$name}. " .
-            "Abrí {$url} en el navegador, guardá el contenido como \"{$name}\" " .
-            "y copialo a api/wsdl/."
-        );
+    public function getUltimoComprobante(int $ptoVta, int $cbteTipo = 11): int
+    {
+        $ta = $this->getTA('wsfe');
+
+        try {
+            $client = new \SoapClient($this->wsfeUrl, [
+                'stream_context'     => stream_context_create(['ssl' => ['verify_peer' => false, 'verify_peer_name' => false]]),
+                'cache_wsdl'         => WSDL_CACHE_NONE,
+                'exceptions'         => true,
+                'connection_timeout' => 20,
+            ]);
+
+            $resp = $client->FECompUltimoAutorizado([
+                'Auth' => [
+                    'Token' => $ta['token'],
+                    'Sign'  => $ta['sign'],
+                    'Cuit'  => (int)$this->cuit,
+                ],
+                'PtoVta'   => $ptoVta,
+                'CbteTipo' => $cbteTipo,
+            ]);
+
+            $result = $resp->FECompUltimoAutorizadoResult ?? null;
+            if ($result && !empty($result->Errors->Err)) {
+                $err = $result->Errors->Err;
+                $msg = is_array($err) ? $err[0]->Msg : $err->Msg;
+                throw new \RuntimeException('WSFE: ' . $msg);
+            }
+
+            return (int)($result->CbteNro ?? 0);
+        } catch (\SoapFault $e) {
+            throw new \RuntimeException('Error WSFE último comprobante: ' . $e->getMessage());
+        }
+    }
+
+    // ── Solicitar CAE ──────────────────────────────────────────────────────
+
+    /**
+     * Solicita CAE a AFIP/ARCA.
+     *
+     * @param int    $ptoVta    Punto de venta
+     * @param int    $numero    Número de comprobante
+     * @param string $fecha     Fecha YYYY-mm-dd
+     * @param float  $monto     Monto total
+     * @param int    $docTipo   Tipo doc (80=CUIT, 96=DNI)
+     * @param int    $docNro    Nro de documento del cliente
+     * @param int    $cbteTipo  Tipo comprobante (11=Factura C)
+     * @param int    $concepto  1=producto, 2=servicio
+     */
+    public function solicitarCAE(
+        int    $ptoVta,
+        int    $numero,
+        string $fecha,
+        float  $monto,
+        int    $docTipo,
+        int    $docNro,
+        int    $cbteTipo = 11,
+        int    $concepto = 2
+    ): array {
+        $ta        = $this->getTA('wsfe');
+        $fechaAfip = str_replace('-', '', $fecha);
+
+        $detalle = [
+            'Concepto'   => $concepto,
+            'DocTipo'    => $docTipo,
+            'DocNro'     => $docNro,
+            'CbteDesde'  => $numero,
+            'CbteHasta'  => $numero,
+            'CbteFch'    => $fechaAfip,
+            'ImpTotal'   => round($monto, 2),
+            'ImpTotConc' => 0,
+            'ImpNeto'    => round($monto, 2),
+            'ImpOpEx'    => 0,
+            'ImpIVA'     => 0,
+            'ImpTrib'    => 0,
+            'MonId'      => 'PES',
+            'MonCotiz'   => 1,
+        ];
+
+        if ($concepto >= 2) {
+            $detalle['FchServDesde'] = $fechaAfip;
+            $detalle['FchServHasta'] = $fechaAfip;
+            $detalle['FchVtoPago']   = date('Ymd', strtotime($fecha . ' +30 days'));
+        }
+
+        try {
+            $client = new \SoapClient($this->wsfeUrl, [
+                'stream_context'     => stream_context_create(['ssl' => ['verify_peer' => false, 'verify_peer_name' => false]]),
+                'cache_wsdl'         => WSDL_CACHE_NONE,
+                'exceptions'         => true,
+                'connection_timeout' => 20,
+            ]);
+
+            $resp = $client->FECAESolicitar([
+                'Auth' => [
+                    'Token' => $ta['token'],
+                    'Sign'  => $ta['sign'],
+                    'Cuit'  => (int)$this->cuit,
+                ],
+                'FeCAEReq' => [
+                    'FeCabReq' => [
+                        'CantReg'  => 1,
+                        'PtoVta'   => $ptoVta,
+                        'CbteTipo' => $cbteTipo,
+                    ],
+                    'FeDetReq' => [
+                        'FECAEDetRequest' => $detalle,
+                    ],
+                ],
+            ]);
+
+            $result = $resp->FECAESolicitarResult ?? null;
+
+            if (!empty($result->Errors->Err)) {
+                $err = $result->Errors->Err;
+                $msg = is_array($err) ? $err[0]->Msg : $err->Msg;
+                throw new \RuntimeException('Error AFIP: ' . $msg);
+            }
+
+            $det = $result->FeDetResp->FECAEDetResponse ?? null;
+            if (!$det || (string)$det->Resultado === 'R') {
+                $obs = '';
+                if (!empty($det->Observaciones->Obs)) {
+                    $o   = $det->Observaciones->Obs;
+                    $obs = ' — ' . (is_array($o) ? $o[0]->Msg : $o->Msg);
+                }
+                throw new \RuntimeException('AFIP rechazó la factura' . $obs);
+            }
+
+            $vto = (string)$det->CAEFchVto;
+            return [
+                'cae'             => (string)$det->CAE,
+                'cae_vencimiento' => substr($vto, 0, 4) . '-' . substr($vto, 4, 2) . '-' . substr($vto, 6, 2),
+            ];
+        } catch (\SoapFault $e) {
+            throw new \RuntimeException('Error WSFE: ' . $e->getMessage());
+        }
     }
 }

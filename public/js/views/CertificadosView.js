@@ -6,8 +6,8 @@ export class CertificadosView extends BaseView {
 
   template() {
     return `
-      <div class="inner flex flex-col w-full">
-        <h2 class="tit text-lg font-semibold mb-2 flex items-center">
+      <div class="inner flex flex-col gap-4 w-full">
+        <h2 class="tit">
           <i class="fas fa-chevron-left pr-4 !block"></i>
           <div>Certificados AFIP</div>
         </h2>

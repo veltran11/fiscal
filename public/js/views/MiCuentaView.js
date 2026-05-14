@@ -5,8 +5,8 @@ import { api } from '../services/ApiService.js';
 export class MiCuentaView extends BaseView {
   template() {
     return `
-      <div class="inner flex flex-col">
-        <h2 class="tit text-lg font-semibold mb-2 flex items-center">
+      <div class="inner flex flex-col gap-4">
+        <h2 class="tit">
           <i class="fas fa-chevron-left pr-4"></i>
           <div>Mi cuenta</div>
         </h2>
@@ -19,7 +19,7 @@ export class MiCuentaView extends BaseView {
               <div class="grid grid-cols-[150px_1fr] gap-4">
                 <div class="fld">
                   <label>CUIT</label>
-                  <input id="cuit" type="text" name="cuit" maxlength="13" class="w-full">
+                  <input type="text" name="cuit" maxlength="13" class="w-full">
                 </div>
             
                 <div class="fld">
@@ -29,7 +29,7 @@ export class MiCuentaView extends BaseView {
               </div>
             </div>
 
-            <div class="btns justify-end">
+            <div class="btns pt-4 justify-end">
               <button type="button" data-route="certificados">
                 <div>Certificados</div>
                 <i class="fas fa-toggle-off"></i>
@@ -58,6 +58,7 @@ export class MiCuentaView extends BaseView {
                 </div>
                 <div class="fld">
                   <label>Punto de venta</label>
+                  
                   <select name="punto_venta" class="w-full"></select>
                 </div>
               </div>
@@ -87,7 +88,7 @@ export class MiCuentaView extends BaseView {
   afterRender() {
     api.get('/cuenta').then(d => this.#poblar(d)).catch(() => { });
 
-    document.getElementById('cuit')?.addEventListener('input', function () {
+    this.outlet.querySelector('input[name="cuit"]')?.addEventListener('input', function () {
       const pos = this.selectionStart;
       const digitsAntes = this.value.substring(0, pos).replace(/\D/g, '').length;
       let d = this.value.replace(/\D/g, '').slice(0, 11);
@@ -112,12 +113,18 @@ export class MiCuentaView extends BaseView {
   }
 
   async #traerPadron() {
+    const cuit = this.outlet.querySelector('input[name="cuit"]')?.value?.replace(/\D/g, '');
+    if (!cuit || cuit.length !== 11) {
+      alert('Ingrese un CUIT válido de 11 dígitos');
+      return;
+    }
+
     const btn = document.getElementById('btn-padron');
     const icon = document.getElementById('icon-padron');
     btn.disabled = true;
     icon.className = 'fas fa-spinner fa-spin';
     try {
-      const d = await api.post('/cuenta/padron');
+      const d = await api.post('/cuenta/padron', { cuit });
       this.#poblar(d);
       icon.className = 'fas fa-check text-green-600';
     } catch (e) {

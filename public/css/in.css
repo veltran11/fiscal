@@ -26,7 +26,23 @@
 }
 
 .grd {
-   @apply grid *:p-4 *:hover:bg-gray-100 *:cursor-pointer;
+   @apply grid;
+}
+
+.grd.rows .contents:not(:first-child) > div {
+  @apply border-t;
+}
+
+.grd .header.contents > div {
+  @apply font-bold text-gray-500;
+}
+
+.grd .contents > div {
+  @apply p-2;
+}
+
+.grd .contents:not(.header) {
+  @apply hover:*:bg-gray-100 cursor-pointer;
 }
 
 .fld label {
@@ -38,7 +54,25 @@
 }
 
 .btns {
-  @apply flex items-center gap-4 mt-4 *:px-3 *:py-2 *:border *:rounded *:bg-gray-100 *:cursor-pointer *:hover:bg-gray-200 *:flex *:items-center *:gap-3;
+  @apply flex gap-4;
 }
 
-.tit i { @apply md:hidden }
+.btns button {
+  @apply px-3 py-2 border rounded bg-gray-300/50 cursor-pointer hover:bg-gray-300/75 active:bg-gray-300 flex items-center gap-3 cursor-pointer;
+}
+
+.btns input {
+  @apply px-3 py-2 border rounded bg-white;
+}
+
+.btn-blue {
+  @apply !bg-blue-500/70 hover:!bg-blue-500/85 active:!bg-blue-500 text-white;
+}
+
+.btn-red {
+  @apply !bg-red-500/70 hover:!bg-red-500/85 active:!bg-red-500 text-white;
+}
+
+.tit { @apply text-lg font-semibold flex items-center; }
+
+.tit i { @apply md:hidden; }

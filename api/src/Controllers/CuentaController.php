@@ -79,46 +79,46 @@ class CuentaController extends BaseController
         $payload = $this->requireAuth($request);
         $userId  = $payload['sub'];
 
+        // Obtener certificado del usuario logueado
         $stmt = $this->db->prepare(
             'SELECT cuit, cert_pem, key_pem FROM datos_fiscales WHERE usuario_id = ? LIMIT 1'
         );
         $stmt->execute([$userId]);
         $df = $stmt->fetch(PDO::FETCH_ASSOC) ?: [];
 
-        $cuit    = $df['cuit']     ?? '';
-        $certPem = $df['cert_pem'] ?? '';
-        $keyPem  = $df['key_pem']  ?? '';
+        // CUIT a consultar (puede venir del body o usar el del usuario)
+        $cuit = $request->body('cuit') ?? '';
+        if ($cuit !== '') {
+            $cuit = preg_replace('/\D/', '', $cuit);
+        }
 
-        if (!$cuit) Response::error('Ingresá tu CUIT antes de consultar el padrón.');
-        if (!$certPem || !$keyPem) Response::error('Instalá el certificado AFIP (pasos 1 y 3 en Certificados) antes de consultar.');
+        $cuitDueno     = $df['cuit'] ?? '';
+        $certPem       = $df['cert_pem'] ?? '';
+        $keyPem        = $df['key_pem'] ?? '';
+        $cuitConsultar = $cuit ?: $cuitDueno;
+
+        if (!$cuitConsultar) {
+            Response::error('Ingresá un CUIT para consultar el padrón.');
+        }
+        if (!$certPem || !$keyPem) {
+            Response::error('Instalá el certificado AFIP (pasos 1 y 3 en Certificados) antes de consultar.');
+        }
 
         $cfg     = require __DIR__ . '/../Config/config.php';
         $afip    = new AfipService($cfg['afip']['produccion']);
-        $cuitNum = preg_replace('/\D/', '', $cuit);
+        $cuitNum = preg_replace('/\D/', '', $cuitDueno);
 
         try {
             $ticket = $afip->getTicket($certPem, $keyPem, $cuitNum, 'ws_sr_padron_a13');
-            $datos  = $afip->getPadron($ticket['token'], $ticket['sign'], $cuit);
+            $datos  = $afip->getPadron($ticket['token'], $ticket['sign'], $cuitDueno, $cuitConsultar);
         } catch (\Throwable $e) {
             Response::error('Error consultando ARCA: ' . $e->getMessage());
         }
 
-        if (empty($datos)) Response::error('ARCA no devolvió datos para ese CUIT.');
-
-        // Puntos de venta (wsfe) — fallo silencioso si el cert no está habilitado para wsfe
-        $puntosVenta = [];
-        try {
-            $wsfeTicket  = $afip->getTicket($certPem, $keyPem, $cuitNum, 'wsfe');
-            $puntosVenta = $afip->getPuntosVenta($wsfeTicket['token'], $wsfeTicket['sign'], $cuit);
-        } catch (\Throwable $ignored) {
+        if (empty($datos)) {
+            Response::error('ARCA no devolvió datos para ese CUIT.');
         }
 
-        $cols = array_keys($datos);
-        $set  = implode(', ', array_map(fn($c) => "$c = ?", $cols));
-        $this->db->prepare(
-            "UPDATE datos_fiscales SET $set WHERE usuario_id = ?"
-        )->execute([...array_values($datos), $userId]);
-
-        Response::success($datos + ['puntos_venta' => $puntosVenta], 'Datos fiscales obtenidos de ARCA.');
+        Response::success($datos, 'Datos fiscales obtenidos de ARCA.');
     }
 }

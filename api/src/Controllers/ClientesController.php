@@ -33,8 +33,18 @@ class ClientesController extends BaseController
         }
 
         $data = ['usuario_id' => $userId, 'nombre' => $nombre];
-        foreach (['tipo_documento', 'numero_documento', 'condicion_iva',
-                  'email', 'telefono', 'direccion', 'localidad', 'codigo_postal'] as $campo) {
+        foreach (
+            [
+                'cuit',
+                'cond_iva_id',
+                'email',
+                'cod_area',
+                'telefono',
+                'direccion',
+                'localidad',
+                'codigo_postal'
+            ] as $campo
+        ) {
             $v = $request->body($campo);
             if ($v !== null) $data[$campo] = $v;
         }
@@ -55,8 +65,19 @@ class ClientesController extends BaseController
         }
 
         $data = [];
-        foreach (['nombre', 'tipo_documento', 'numero_documento', 'condicion_iva',
-                  'email', 'telefono', 'direccion', 'localidad', 'codigo_postal'] as $campo) {
+        foreach (
+            [
+                'nombre',
+                'cuit',
+                'cond_iva_id',
+                'email',
+                'cod_area',
+                'telefono',
+                'direccion',
+                'localidad',
+                'codigo_postal'
+            ] as $campo
+        ) {
             $v = $request->body($campo);
             if ($v !== null) $data[$campo] = $v;
         }

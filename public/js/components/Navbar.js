@@ -16,22 +16,8 @@ export class Navbar extends Component {
 
           ${user ? `
             <div class="class="text-sm text-gray-600">${user.name ?? user.email}</div>
-
-            <button id="btn-logout"
-              class="text-sm bg-red-500 hover:bg-red-600 text-white px-3 py-1 rounded transition">
-              Salir
-            </button>
           ` : ''}
         </div>
       </nav>`;
-  }
-
-  afterRender() {
-    this.outlet.addEventListener('click', e => {
-      if (e.target.id === 'btn-logout') {
-        auth.logout();
-        eventBus.emit('navigate', 'login');
-      }
-    });
   }
 }

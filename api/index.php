@@ -11,6 +11,7 @@ use App\Controllers\AuthController;
 use App\Controllers\CertificadosController;
 use App\Controllers\ClientesController;
 use App\Controllers\CuentaController;
+use App\Controllers\FacturasController;
 
 // CORS
 $cfg = require __DIR__ . '/src/Config/config.php';
@@ -44,6 +45,11 @@ $router->get('/api/certificados',        [CertificadosController::class, 'estado
 $router->post('/api/certificados/generar', [CertificadosController::class, 'generar']);
 $router->get('/api/certificados/csr',    [CertificadosController::class, 'csr']);
 $router->post('/api/certificados/subir', [CertificadosController::class, 'subir']);
+
+$router->get('/api/facturas',          [FacturasController::class, 'index']);
+$router->post('/api/facturas',         [FacturasController::class, 'store']);
+$router->put('/api/facturas/{id}',     [FacturasController::class, 'update']);
+$router->delete('/api/facturas/{id}',  [FacturasController::class, 'destroy']);
 
 // --- Dispatcher ---
 try {
