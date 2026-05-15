@@ -17,9 +17,16 @@ class Request
 
     private function parseBody(): array
     {
-        $raw = file_get_contents('php://input');
-        $decoded = json_decode($raw, true);
-        return is_array($decoded) ? $decoded : [];
+        $contentType = $_SERVER['CONTENT_TYPE'] ?? $_SERVER['HTTP_CONTENT_TYPE'] ?? '';
+
+        if (str_contains($contentType, 'application/json')) {
+            $raw = file_get_contents('php://input');
+            $decoded = json_decode($raw, true);
+            return is_array($decoded) ? $decoded : [];
+        }
+
+        // application/x-www-form-urlencoded o multipart/form-data
+        return $_POST ?? [];
     }
 
     private function parseHeaders(): array

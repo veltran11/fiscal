@@ -1,10 +1,12 @@
-import { Router }        from './router/Router.js';
-import { LoginView }     from './views/LoginView.js';
+import { Router } from './router/Router.js';
+import { LoginView } from './views/LoginView.js';
+import { RegisterView } from './views/RegisterView.js';
+import { OlvideView } from './views/OlvideView.js';
 import { DashboardView } from './views/DashboardView.js';
-import { MiCuentaView }  from './views/MiCuentaView.js';
-import { Navbar }        from './components/Navbar.js';
-import { auth }          from './services/AuthService.js';
-import { eventBus }      from './utils/EventBus.js';
+import { MiCuentaView } from './views/MiCuentaView.js';
+import { Navbar } from './components/Navbar.js';
+import { auth } from './services/AuthService.js';
+import { eventBus } from './utils/EventBus.js';
 
 class App {
   #router;
@@ -17,9 +19,11 @@ class App {
 
   #registerRoutes() {
     this.#router
-      .register('login',      LoginView)
-      .register('dashboard',  DashboardView)
-      .register('mi-cuenta',  MiCuentaView);
+      .register('login', LoginView)
+      .register('register', RegisterView)
+      .register('olvide', OlvideView)
+      .register('dashboard', DashboardView)
+      .register('mi-cuenta', MiCuentaView);
   }
 
   #registerEvents() {

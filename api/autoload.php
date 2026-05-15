@@ -1,7 +1,13 @@
 <?php
 
+// Autoload de Composer (para PHPMailer y librerías externas)
+$composerAutoload = __DIR__ . '/vendor/autoload.php';
+if (file_exists($composerAutoload)) {
+    require $composerAutoload;
+}
+
+// Autoload propio para el namespace App\
 spl_autoload_register(function (string $class): void {
-    // Namespace raíz: App\ → api/src/
     $prefix = 'App\\';
     $base   = __DIR__ . '/src/';
 

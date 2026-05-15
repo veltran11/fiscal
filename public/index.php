@@ -25,7 +25,12 @@
     <main id="view-outlet" class="p-4 flex-1 overflow-hidden"></main>
   </div>
 
-  <script type="module" src="js/app.js"></script>
+  <?php
+  // Cache busting: agrega timestamp de modificación del JS como versión
+  $jsFile = __DIR__ . '/js/app.js';
+  $version = file_exists($jsFile) ? filemtime($jsFile) : time();
+  ?>
+  <script type="module" src="js/app.js?v=<?= $version ?>"></script>
 </body>
 
 </html>

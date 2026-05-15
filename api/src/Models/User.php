@@ -23,7 +23,12 @@ class User extends BaseModel
 
     public function safe(array $user): array
     {
-        unset($user['password'], $user['token_verificacion']);
+        unset($user['password'], $user['token_verificacion'], $user['token_reset']);
         return $user;
+    }
+
+    public function findByResetToken(string $token): ?array
+    {
+        return $this->findBy('token_reset', $token);
     }
 }

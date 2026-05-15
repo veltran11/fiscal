@@ -1,5 +1,6 @@
 import { BaseView } from './BaseView.js';
 import { eventBus } from '../utils/EventBus.js';
+import { auth } from '../services/AuthService.js';
 import { ClientesView } from './ClientesView.js';
 import { ClienteFormView } from './ClienteFormView.js';
 import { FacturasView } from './FacturasView.js';
@@ -80,6 +81,7 @@ export class DashboardView extends BaseView {
       if (!link) return;
 
       if (link.dataset.route === 'logout') {
+        auth.logout();
         eventBus.emit('auth:logout');
         return;
       }

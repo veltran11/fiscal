@@ -24,7 +24,14 @@ export class LoginView extends BaseView {
               class="w-full bg-blue-600 hover:bg-blue-700 text-white font-semibold py-2 rounded-lg transition">
               Entrar
             </button>
+            <p class="text-center text-sm mt-1">
+              <a href="#" id="link-olvide" class="text-gray-500 hover:text-blue-600 hover:underline">¿Olvidaste tu contraseña?</a>
+            </p>
           </form>
+          <p class="text-center text-sm text-gray-500 mt-4">
+            ¿No tenés cuenta?
+            <a href="#" id="link-registrarse" class="text-blue-600 hover:underline">Registrarse</a>
+          </p>
         </div>
       </div>`;
   }
@@ -43,5 +50,17 @@ export class LoginView extends BaseView {
         Toast.error(err.message ?? 'Credenciales incorrectas');
       }
     });
+
+    this.outlet.querySelector('#link-registrarse')
+      ?.addEventListener('click', e => {
+        e.preventDefault();
+        eventBus.emit('navigate', 'register');
+      });
+
+    this.outlet.querySelector('#link-olvide')
+      ?.addEventListener('click', e => {
+        e.preventDefault();
+        eventBus.emit('navigate', 'olvide');
+      });
   }
 }

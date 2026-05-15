@@ -1,0 +1,10 @@
+node_modules/
+.vscode/
+.idea/
+temp/
+Thumbs.db
+.DS_Store
+*.log
+
+# Dependencias PHP (se instalan en producción con composer install)
+api/vendor/

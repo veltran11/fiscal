@@ -25,9 +25,9 @@ export class FacturasView extends BaseView {
         </div>
 
         <div class="frame bg-white flex-1">
-          <div id="facturas-grd" class="grd rows grid-cols-2 md:grid-cols-[2fr_1fr_1fr_min-content]">
+          <div id="facturas-grd" class="grd items-stretch rows grid-cols-2 md:grid-cols-[2fr_1fr_1fr_min-content]">
             <div class="header contents">
-              <div>Cliente</div>
+              <div class="pt-2 md:pt-0">Cliente</div>
               <div class="text-right hidden md:block">Número</div>
               <div class="text-center hidden md:block">Fecha</div>
               <div class="text-right">Importe</div>
@@ -82,8 +82,11 @@ export class FacturasView extends BaseView {
       <div class="contents">
         <div>${f.cliente_nombre}</div>
         <div class="text-right hidden md:block text-gray-500">${String(f.numero).padStart(5, '0')}</div>
-        <div class="text-center whitespace-nowrap hidden md:block text-gray-500">${f.fecha ? new Date(f.fecha).toLocaleDateString('es-AR', { day: '2-digit', month: '2-digit', year: 'numeric' }) : ''}</div>
-        <div class="text-right">${f.monto}</div>
+        <div class="text-center whitespace-nowrap hidden md:block text-gray-500">${f.fecha ? f.aux = new Date(f.fecha).toLocaleDateString('es-AR', { day: '2-digit', month: '2-digit', year: 'numeric' }) : ''}</div>
+        <div class="text-right font-bold md:font-normal">
+          <div class="text-xs md:hidden text-gray-400">${f.aux}</div>
+          <div>$ ${f.monto}</div>
+        </div>
       </div>`).join('');
 
     grd.insertAdjacentHTML('beforeend', rows);

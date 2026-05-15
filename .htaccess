@@ -4,6 +4,13 @@ RewriteEngine On
 # Pass Authorization header to PHP (Apache strips it by default with CGI/FastCGI)
 RewriteRule .* - [E=HTTP_AUTHORIZATION:%{HTTP:Authorization}]
 
+# No cache para JS y CSS en desarrollo (cache busting automático)
+<FilesMatch "\.(js|css)$">
+  Header set Cache-Control "no-cache, no-store, must-revalidate"
+  Header set Pragma "no-cache"
+  Header set Expires "0"
+</FilesMatch>
+
 # API → api/index.php
 RewriteCond %{REQUEST_URI} ^/api/
 RewriteCond %{REQUEST_FILENAME} !-f
@@ -16,4 +23,4 @@ RewriteRule ^(.*)$ /public/$1 [L]
 
 # Todo lo demás → SPA
 RewriteCond %{REQUEST_FILENAME} !-f
-RewriteRule ^(.*)$ /public/index.html [L]
+RewriteRule ^(.*)$ /public/index.php [L]

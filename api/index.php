@@ -29,8 +29,13 @@ $request = new Request();
 $router  = new Router();
 
 // --- Rutas ---
-$router->post('/api/auth/login', [AuthController::class, 'login']);
-$router->get('/api/auth/me',     [AuthController::class, 'me']);
+$router->post('/api/auth/login',     [AuthController::class, 'login']);
+$router->get('/api/auth/me',         [AuthController::class, 'me']);
+$router->post('/api/auth/register',  [AuthController::class, 'register']);
+$router->get('/api/auth/verificar',  [AuthController::class, 'verificar']);
+$router->post('/api/auth/olvide',    [AuthController::class, 'olvidePassword']);
+$router->get('/api/auth/restablecer',  [AuthController::class, 'restablecerFormulario']);
+$router->post('/api/auth/restablecer', [AuthController::class, 'restablecer']);
 
 $router->get('/api/cuenta',         [CuentaController::class, 'get']);
 $router->put('/api/cuenta',         [CuentaController::class, 'save']);
