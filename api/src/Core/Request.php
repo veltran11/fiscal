@@ -38,6 +38,10 @@ class Request
                 $headers[strtolower($name)] = $value;
             }
         }
+        // Apache con rewrite interno almacena el header con prefijo REDIRECT_
+        if (!isset($headers['authorization']) && isset($_SERVER['REDIRECT_HTTP_AUTHORIZATION'])) {
+            $headers['authorization'] = $_SERVER['REDIRECT_HTTP_AUTHORIZATION'];
+        }
         return $headers;
     }
 
@@ -52,13 +56,13 @@ class Request
         return parse_url($uri, PHP_URL_PATH);
     }
 
-    public function body(string $key = null, mixed $default = null): mixed
+    public function body(?string $key = null, mixed $default = null): mixed
     {
         if ($key === null) return $this->body;
         return $this->body[$key] ?? $default;
     }
 
-    public function query(string $key = null, mixed $default = null): mixed
+    public function query(?string $key = null, mixed $default = null): mixed
     {
         if ($key === null) return $this->query;
         return $this->query[$key] ?? $default;

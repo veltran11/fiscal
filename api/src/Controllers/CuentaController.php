@@ -2,6 +2,7 @@
 
 namespace App\Controllers;
 
+use App\Core\Config;
 use App\Core\Database;
 use App\Core\Request;
 use App\Core\Response;
@@ -104,7 +105,7 @@ class CuentaController extends BaseController
             Response::error('Instalá el certificado AFIP (pasos 1 y 3 en Certificados) antes de consultar.');
         }
 
-        $cfg     = require __DIR__ . '/../Config/config.php';
+        $cfg     = Config::get();
         $afip    = new AfipService($cfg['afip']['produccion']);
         $cuitNum = preg_replace('/\D/', '', $cuitDueno);
 

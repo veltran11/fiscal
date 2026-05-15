@@ -10,4 +10,4 @@ RewriteCond %{REQUEST_FILENAME} -d
 RewriteRule ^ - [L]
 
 # SPA fallback
-RewriteRule ^ index.html [L]
+RewriteRule ^ index.php [L]

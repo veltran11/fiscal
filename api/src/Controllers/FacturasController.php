@@ -2,6 +2,7 @@
 
 namespace App\Controllers;
 
+use App\Core\Config;
 use App\Core\Database;
 use App\Core\Request;
 use App\Core\Response;
@@ -80,7 +81,7 @@ class FacturasController extends BaseController
         $iva = round($monto * 21 / 121, 2);
 
         // ── Facturar en ARCA ──
-        $cfg  = require __DIR__ . '/../Config/config.php';
+        $cfg  = Config::get();
         $afip = new AfipService($cfg['afip']['produccion'], $cuitDueno, $certPem, $keyPem);
 
         if (!$afip->isReady()) {

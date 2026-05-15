@@ -18,6 +18,10 @@ export class AuthService {
     eventBus.emit('auth:logout');
   }
 
+  async resendVerification(email) {
+    return await api.post('/auth/reenviar', { email });
+  }
+
   async fetchUser() {
     if (!api.getToken()) return null;
     try {

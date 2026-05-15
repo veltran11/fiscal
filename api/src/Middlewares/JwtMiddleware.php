@@ -2,6 +2,7 @@
 
 namespace App\Middlewares;
 
+use App\Core\Config;
 use App\Core\Request;
 use App\Core\Response;
 
@@ -26,7 +27,7 @@ class JwtMiddleware
 
     public static function generate(array $payload): string
     {
-        $cfg     = require __DIR__ . '/../Config/config.php';
+        $cfg     = Config::get();
         $secret  = $cfg['jwt']['secret'];
         $expires = $cfg['jwt']['expires'];
 
@@ -43,7 +44,7 @@ class JwtMiddleware
 
     private static function decode(string $token): ?array
     {
-        $cfg    = require __DIR__ . '/../Config/config.php';
+        $cfg    = Config::get();
         $secret = $cfg['jwt']['secret'];
 
         $parts = explode('.', $token);

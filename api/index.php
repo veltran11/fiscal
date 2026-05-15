@@ -7,6 +7,7 @@ require_once __DIR__ . '/autoload.php';
 use App\Core\Request;
 use App\Core\Response;
 use App\Core\Router;
+use App\Core\Config;
 use App\Controllers\AuthController;
 use App\Controllers\CertificadosController;
 use App\Controllers\ClientesController;
@@ -14,7 +15,7 @@ use App\Controllers\CuentaController;
 use App\Controllers\FacturasController;
 
 // CORS
-$cfg = require __DIR__ . '/src/Config/config.php';
+$cfg = Config::get();
 header('Content-Type: application/json; charset=utf-8');
 header('Access-Control-Allow-Origin: '  . $cfg['cors']['allowed_origin']);
 header('Access-Control-Allow-Methods: GET, POST, PUT, DELETE, OPTIONS');
@@ -33,6 +34,8 @@ $router->post('/api/auth/login',     [AuthController::class, 'login']);
 $router->get('/api/auth/me',         [AuthController::class, 'me']);
 $router->post('/api/auth/register',  [AuthController::class, 'register']);
 $router->get('/api/auth/verificar',  [AuthController::class, 'verificar']);
+$router->post('/api/auth/reenviar',  [AuthController::class, 'reenviarVerificacion']);
+$router->delete('/api/auth/cuenta',  [AuthController::class, 'eliminarCuenta']);
 $router->post('/api/auth/olvide',    [AuthController::class, 'olvidePassword']);
 $router->get('/api/auth/restablecer',  [AuthController::class, 'restablecerFormulario']);
 $router->post('/api/auth/restablecer', [AuthController::class, 'restablecer']);

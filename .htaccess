@@ -10,5 +10,6 @@ RewriteRule ^(css|js|img|fonts)/(.*)$ public/$1/$2 [L]
 # API
 RewriteRule ^api/(.*)$ api/index.php [L,QSA]
 
-# SPA
+# SPA — solo si no es un archivo real
+RewriteCond %{REQUEST_FILENAME} !-f
 RewriteRule ^(.*)$ public/index.php [L]

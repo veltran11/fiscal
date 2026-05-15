@@ -2,6 +2,7 @@
 
 namespace App\Services;
 
+use App\Core\Config;
 use PHPMailer\PHPMailer\PHPMailer;
 use PHPMailer\PHPMailer\Exception;
 
@@ -44,7 +45,7 @@ class MailService
             $mail->AltBody = strip_tags($body);
 
             return $mail->send();
-        } catch (Exception $e) {
+        } catch (Exception) {
             error_log('MailService error: ' . $mail->ErrorInfo);
             return false;
         }
@@ -58,15 +59,6 @@ class MailService
 
     private static function getConfig(): array
     {
-        $cfg = require __DIR__ . '/../Config/config.php';
-
-        // Sobreescribir con config.local.php si existe
-        $localFile = __DIR__ . '/../Config/config.local.php';
-        if (file_exists($localFile)) {
-            $local = require $localFile;
-            $cfg = array_merge_recursive($cfg, $local);
-        }
-
-        return $cfg;
+        return Config::get();
     }
 }

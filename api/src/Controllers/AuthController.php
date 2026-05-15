@@ -108,7 +108,6 @@ class AuthController extends BaseController
         }
 
         // Enviar mail
-        $cfg = require __DIR__ . '/../Config/config.php';
         $baseUrl = ($_SERVER['REQUEST_SCHEME'] ?? 'http') . '://' . ($_SERVER['HTTP_HOST'] ?? 'localhost');
         $link = $baseUrl . '/api/auth/verificar?token=' . $token;
 
@@ -119,6 +118,40 @@ class AuthController extends BaseController
         MailService::send($email, 'Activá tu cuenta', $body);
 
         Response::success(['id' => $id], $msg, 201);
+    }
+
+    public function eliminarCuenta(Request $request): void
+    {
+        $payload = $this->requireAuth($request);
+        $this->userModel->delete($payload['sub']);
+        Response::success([], 'Cuenta eliminada.');
+    }
+
+    public function reenviarVerificacion(Request $request): void
+    {
+        $email = trim($request->body('email') ?? '');
+
+        if (!$email || !filter_var($email, FILTER_VALIDATE_EMAIL)) {
+            Response::error('Email inválido.');
+        }
+
+        $user = $this->userModel->findByEmail($email);
+
+        if ($user && !$user['activo']) {
+            $token = bin2hex(random_bytes(32));
+            $this->userModel->update($user['id'], ['token_verificacion' => $token]);
+
+            $baseUrl = ($_SERVER['REQUEST_SCHEME'] ?? 'http') . '://' . ($_SERVER['HTTP_HOST'] ?? 'localhost');
+            $link    = $baseUrl . '/api/auth/verificar?token=' . $token;
+
+            $body = '<h2>Activá tu cuenta</h2>'
+                . '<p>Hacé clic en el siguiente link para activar tu cuenta:</p>'
+                . '<p><a href="' . $link . '">' . $link . '</a></p>';
+
+            MailService::send($email, 'Activá tu cuenta', $body);
+        }
+
+        Response::success([], 'Si tu cuenta está pendiente de activación, recibirás el email de verificación.');
     }
 
     public function olvidePassword(Request $request): void
@@ -143,7 +176,6 @@ class AuthController extends BaseController
         ]);
 
         // Enviar mail
-        $cfg = require __DIR__ . '/../Config/config.php';
         $baseUrl = ($_SERVER['REQUEST_SCHEME'] ?? 'http') . '://' . ($_SERVER['HTTP_HOST'] ?? 'localhost');
         $link = $baseUrl . '/api/auth/restablecer?token=' . $token;
 

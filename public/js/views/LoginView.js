@@ -24,6 +24,12 @@ export class LoginView extends BaseView {
               class="w-full bg-blue-600 hover:bg-blue-700 text-white font-semibold py-2 rounded-lg transition">
               Entrar
             </button>
+            <div id="reenviar-section" class="hidden text-center text-sm bg-yellow-50 border border-yellow-200 rounded-lg p-3">
+              <p class="text-yellow-800 mb-2">Tu cuenta aún no fue activada.</p>
+              <button type="button" id="btn-reenviar" class="text-blue-600 hover:underline font-medium">
+                Reenviar email de verificación
+              </button>
+            </div>
             <p class="text-center text-sm mt-1">
               <a href="#" id="link-olvide" class="text-gray-500 hover:text-blue-600 hover:underline">¿Olvidaste tu contraseña?</a>
             </p>
@@ -40,14 +46,36 @@ export class LoginView extends BaseView {
     const form = this.outlet.querySelector('#form-login');
     const email = this.outlet.querySelector('#input-email');
     const password = this.outlet.querySelector('#input-password');
+    const reenviarSection = this.outlet.querySelector('#reenviar-section');
+    const btnReenviar = this.outlet.querySelector('#btn-reenviar');
 
     form.addEventListener('submit', async e => {
       e.preventDefault();
+      reenviarSection.classList.add('hidden');
       try {
         await auth.login(email.value.trim(), password.value);
         eventBus.emit('navigate', 'dashboard');
       } catch (err) {
-        Toast.error(err.message ?? 'Credenciales incorrectas');
+        if (err.message === 'Usuario inactivo') {
+          reenviarSection.classList.remove('hidden');
+        } else {
+          Toast.error(err.message ?? 'Credenciales incorrectas');
+        }
+      }
+    });
+
+    btnReenviar.addEventListener('click', async () => {
+      btnReenviar.disabled = true;
+      btnReenviar.textContent = 'Enviando...';
+      try {
+        await auth.resendVerification(email.value.trim());
+        Toast.success('Email de verificación enviado. Revisá tu bandeja.');
+        reenviarSection.classList.add('hidden');
+      } catch {
+        Toast.error('No se pudo enviar el email. Intentá de nuevo.');
+      } finally {
+        btnReenviar.disabled = false;
+        btnReenviar.textContent = 'Reenviar email de verificación';
       }
     });
 

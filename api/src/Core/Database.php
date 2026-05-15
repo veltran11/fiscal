@@ -2,6 +2,7 @@
 
 namespace App\Core;
 
+use App\Core\Config;
 use PDO;
 use PDOException;
 
@@ -26,7 +27,7 @@ class Database
                     PDO::ATTR_DEFAULT_FETCH_MODE => PDO::FETCH_ASSOC,
                     PDO::ATTR_EMULATE_PREPARES   => false,
                 ]);
-            } catch (PDOException $e) {
+            } catch (PDOException) {
                 http_response_code(500);
                 echo json_encode(['message' => 'Error de conexión a la base de datos']);
                 exit;
@@ -38,12 +39,6 @@ class Database
 
     private static function getConfig(): array
     {
-        $cfg = require __DIR__ . '/../Config/config.php';
-        $localFile = __DIR__ . '/../Config/config.local.php';
-        if (file_exists($localFile)) {
-            $local = require $localFile;
-            $cfg = array_replace_recursive($cfg, $local);
-        }
-        return $cfg;
+        return Config::get();
     }
 }

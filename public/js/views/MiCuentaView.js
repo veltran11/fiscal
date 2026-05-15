@@ -1,6 +1,7 @@
 import { BaseView } from './BaseView.js';
-import { eventBus } from '../utils/EventBus.js';
+import { auth } from '../services/AuthService.js';
 import { api } from '../services/ApiService.js';
+import { confirm } from '../utils/ConfirmModal.js';
 
 export class MiCuentaView extends BaseView {
   template() {
@@ -81,6 +82,20 @@ export class MiCuentaView extends BaseView {
               </div>
             </div>
           </section>
+
+          <section class="frame p-4 bg-white btns">
+            <button type="button" id="btn-cerrar-sesion">
+              <div>Cerrar sesión</div>
+              <i class="fas fa-power-off"></i>
+            </button>
+
+            <div class="flex-1"></div>
+            
+            <button type="button" class="btn-red">
+              <div>Eliminar cuenta</div>
+              <i class="fas fa-trash"></i>
+            </button>
+          </section>
         </form>
       </div>`;
   }
@@ -105,11 +120,21 @@ export class MiCuentaView extends BaseView {
       this.setSelectionRange(nuevaPos, nuevaPos);
     });
 
-    document.getElementById('btn-cerrar-sesion')?.addEventListener('click', () => {
-      eventBus.emit('auth:logout');
+    this.outlet.querySelector('#btn-cerrar-sesion')?.addEventListener('click', () => {
+      auth.logout();
     });
 
     document.getElementById('btn-padron')?.addEventListener('click', () => this.#traerPadron());
+
+    this.outlet.querySelector('.btn-red')?.addEventListener('click', async () => {
+      if (!await confirm('¿Eliminás tu cuenta? Esta acción no se puede deshacer.')) return;
+      try {
+        await api.delete('/auth/cuenta');
+        auth.logout();
+      } catch (e) {
+        alert(e.message ?? 'No se pudo eliminar la cuenta.');
+      }
+    });
   }
 
   async #traerPadron() {
