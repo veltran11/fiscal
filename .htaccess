@@ -4,16 +4,11 @@ RewriteEngine On
 # Pass Authorization header to PHP (Apache strips it by default with CGI/FastCGI)
 RewriteRule .* - [E=HTTP_AUTHORIZATION:%{HTTP:Authorization}]
 
-# Archivos estáticos existentes en public/
-RewriteCond %{REQUEST_FILENAME} !-f
-RewriteCond %{DOCUMENT_ROOT}/public/$1 -f
-RewriteRule ^(.*)$ public/$1 [L]
+# Archivos estáticos - redirigir a public/
+RewriteRule ^(css|js|img|fonts)/(.*)$ public/$1/$2 [L]
 
 # API
-RewriteCond %{REQUEST_FILENAME} !-f
-RewriteCond %{REQUEST_URI} ^/api/
 RewriteRule ^api/(.*)$ api/index.php [L,QSA]
 
 # SPA - todo lo demas
-RewriteCond %{REQUEST_FILENAME} !-f
 RewriteRule ^(.*)$ public/index.php [L]
