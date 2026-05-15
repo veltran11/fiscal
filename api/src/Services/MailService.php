@@ -13,7 +13,7 @@ class MailService
      */
     public static function send(string $to, string $subject, string $body): bool
     {
-        $cfg = require __DIR__ . '/../Config/config.php';
+        $cfg = self::getConfig();
         $mail = new PHPMailer(true);
 
         try {
@@ -52,7 +52,21 @@ class MailService
 
     public static function from(): string
     {
-        $cfg = require __DIR__ . '/../Config/config.php';
+        $cfg = self::getConfig();
         return $cfg['mail']['from'] ?? 'noreply@' . ($_SERVER['HTTP_HOST'] ?? 'localhost');
+    }
+
+    private static function getConfig(): array
+    {
+        $cfg = require __DIR__ . '/../Config/config.php';
+
+        // Sobreescribir con config.local.php si existe
+        $localFile = __DIR__ . '/../Config/config.local.php';
+        if (file_exists($localFile)) {
+            $local = require $localFile;
+            $cfg = array_merge_recursive($cfg, $local);
+        }
+
+        return $cfg;
     }
 }

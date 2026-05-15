@@ -21,16 +21,16 @@ return [
         'produccion' => true, // true = producción, false = homologación
     ],
     'mail' => [
-        'from'      => 'hola@v11.com.ar',
-        'from_name' => 'Fiscal',
+        'from'      => 'noreply@tudominio.com',
+        'from_name' => 'Sistema de Facturación',
 
-        // SMTP — si se deja vacío, PHPMailer usa mail() de PHP internamente
+        // SMTP — se deja vacío por seguridad; crear config.local.php con los datos reales
         'smtp' => [
-            'host'     => 'smtp.zoho.com',
+            'host'     => '',
             'port'     => 587,
-            'secure'   => 'tls',     // 'ssl' o 'tls'
-            'username' => 'hola@v11.com.ar',
-            'password' => '***REMOVED***',
+            'secure'   => 'tls',
+            'username' => '',
+            'password' => '',
         ],
     ],
 ];

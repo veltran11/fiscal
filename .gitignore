@@ -8,3 +8,9 @@ Thumbs.db
 
 # Dependencias PHP (se instalan en producción con composer install)
 api/vendor/
+
+# Configuración local (no subir credenciales a Git)
+api/src/Config/config.local.php
+deploy.php
+deploy.bat
+deploy-local.sh
