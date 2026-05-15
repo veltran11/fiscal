@@ -7,6 +7,9 @@ RewriteRule .* - [E=HTTP_AUTHORIZATION:%{HTTP:Authorization}]
 # Archivos estáticos - redirigir a public/
 RewriteRule ^(css|js|img|fonts)/(.*)$ public/$1/$2 [L]
 
+# Bundles de JS (con hash)
+RewriteRule ^bundles/(.*)$ public/bundle.php [L]
+
 # API
 RewriteRule ^api/(.*)$ api/index.php [L,QSA]
 

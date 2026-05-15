@@ -38,7 +38,11 @@ $cssVersion = file_exists($cssFile) ? filemtime($cssFile) : time();
     <main id="view-outlet" class="p-4 flex-1 overflow-hidden"></main>
   </div>
 
-  <script type="module" src="js/app-v2.js"></script>
+  <?php
+  // Servir todo el JS concatenado en un solo archivo con nombre único
+  $hash = md5_file(__DIR__ . '/js/app.js');
+  ?>
+  <script type="module" src="bundles/app-<?= $hash ?>.js"></script>
 </body>
 
 </html>
