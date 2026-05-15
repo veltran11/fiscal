@@ -39,7 +39,8 @@ $cssVersion = file_exists($cssFile) ? filemtime($cssFile) : time();
   </div>
 
   <?php
-  // Calcular el hash igual que en bundle.php
+  // El hash se calcula igual que en bundle.php para que coincidan
+  $jsDir = __DIR__ . '/js';
   $files = [
     'utils/EventBus.js',
     'services/ApiService.js',
@@ -62,12 +63,18 @@ $cssVersion = file_exists($cssFile) ? filemtime($cssFile) : time();
     'views/CertificadosView.js',
     'app.js',
   ];
-  $content = '';
-  foreach ($files as $f) {
-    $p = __DIR__ . '/js/' . $f;
-    if (file_exists($p)) $content .= file_get_contents($p);
+  $bundle = '';
+  foreach ($files as $file) {
+    $path = $jsDir . '/' . $file;
+    if (file_exists($path)) {
+      $content = file_get_contents($path);
+      $content = preg_replace("/^import\s+.*?from\s+['\"].*?['\"];?\s*$/m", '', $content);
+      $content = preg_replace('/^export\s+/m', '', $content);
+      $content = str_replace("import.meta.url", "window.location.origin + '/api'", $content);
+      $bundle .= trim($content) . "\n\n";
+    }
   }
-  $hash = md5($content);
+  $hash = md5($bundle);
   ?>
   <script type="module" src="bundle.php?hash=<?= $hash ?>"></script>
 </body>
