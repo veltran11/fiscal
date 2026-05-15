@@ -39,10 +39,37 @@ $cssVersion = file_exists($cssFile) ? filemtime($cssFile) : time();
   </div>
 
   <?php
-  // Servir todo el JS concatenado en un solo archivo con nombre único
-  $hash = md5_file(__DIR__ . '/js/app.js');
+  // Calcular el hash igual que en bundle.php
+  $files = [
+    'utils/EventBus.js',
+    'services/ApiService.js',
+    'services/AuthService.js',
+    'components/Component.js',
+    'components/Navbar.js',
+    'router/Router.js',
+    'views/BaseView.js',
+    'views/LoginView.js',
+    'views/RegisterView.js',
+    'views/OlvideView.js',
+    'views/DashboardView.js',
+    'views/MiCuentaView.js',
+    'views/ClientesView.js',
+    'views/ClienteState.js',
+    'views/ClienteFormView.js',
+    'views/FacturasView.js',
+    'views/FacturaState.js',
+    'views/FacturaFormView.js',
+    'views/CertificadosView.js',
+    'app.js',
+  ];
+  $content = '';
+  foreach ($files as $f) {
+    $p = __DIR__ . '/js/' . $f;
+    if (file_exists($p)) $content .= file_get_contents($p);
+  }
+  $hash = md5($content);
   ?>
-  <script type="module" src="/public/bundle.php?hash=<?= $hash ?>"></script>
+  <script type="module" src="bundle.php?hash=<?= $hash ?>"></script>
 </body>
 
 </html>
