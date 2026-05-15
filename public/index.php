@@ -38,10 +38,7 @@ $cssVersion = file_exists($cssFile) ? filemtime($cssFile) : time();
     <main id="view-outlet" class="p-4 flex-1 overflow-hidden"></main>
   </div>
 
-  <?php
-  // Cache busting: agrega timestamp de modificación del JS como versión
-  ?>
-  <script type="module" src="js/app.js?v=<?= $version ?>"></script>
+  <script type="module" src="js/app-v2.js"></script>
 </body>
 
 </html>
