@@ -1,24 +1,14 @@
 <?php
+
 /**
- * Genera bundles de JS con hash para evitar caché del CDN.
+ * Genera un bundle único de JS con hash.
+ * Se sirve desde public/bundle.php?hash=XXXXX
  * 
- * Uso: <script src="bundles/app-<hash>.js"></script>
- * 
- * Cuando app.js cambia, el hash cambia y el nombre del archivo es diferente,
- * forzando al CDN y al navegador a descargar la nueva versión.
+ * El hash cambia cuando el código cambia, forzando al CDN
+ * a descargar la nueva versión.
  */
 
-// Determinar qué bundle generar
-$requestUri = $_SERVER['REQUEST_URI'] ?? '';
-preg_match('#bundles/app-([a-f0-9]+)\.js#', $requestUri, $matches);
-
-if (empty($matches)) {
-    http_response_code(404);
-    echo '/* Bundle not found */';
-    exit;
-}
-
-$expectedHash = $matches[1];
+$expectedHash = $_GET['hash'] ?? '';
 
 // Combinar todos los JS en orden
 $jsDir = __DIR__ . '/js';
@@ -45,15 +35,18 @@ $files = [
     'app.js',
 ];
 
-// Construir el bundle
+// Construir el bundle sin imports/exports
 $bundle = '';
 foreach ($files as $file) {
     $path = $jsDir . '/' . $file;
     if (file_exists($path)) {
-        // Remover imports/export para hacerlo inline
         $content = file_get_contents($path);
-        $content = preg_replace('/^import\s+.*?;\s*$/m', '', $content);
+        // Remover import ... from '...'
+        $content = preg_replace("/^import\s+.*?from\s+['\"].*?['\"];?\s*$/m", '', $content);
+        // Remover export 
         $content = preg_replace('/^export\s+/m', '', $content);
+        // Remover import.meta
+        $content = str_replace("import.meta.url", "window.location.origin + '/api'", $content);
         $bundle .= "// === $file ===\n" . trim($content) . "\n\n";
     }
 }
@@ -63,11 +56,12 @@ $actualHash = md5($bundle);
 
 if ($expectedHash !== $actualHash) {
     http_response_code(404);
-    echo "/* Hash mismatch. Expected $expectedHash, actual $actualHash */";
+    header('Content-Type: text/plain');
+    echo "Hash mismatch. Expected: $expectedHash, Actual: $actualHash";
     exit;
 }
 
-// Cache largo pero el nombre único ya garantiza frescura
 header('Content-Type: application/javascript; charset=utf-8');
+// Cache largo - el nombre único ya garantiza que sea fresco
 header('Cache-Control: public, max-age=31536000, immutable');
 echo $bundle;

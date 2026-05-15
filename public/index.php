@@ -42,7 +42,7 @@ $cssVersion = file_exists($cssFile) ? filemtime($cssFile) : time();
   // Servir todo el JS concatenado en un solo archivo con nombre único
   $hash = md5_file(__DIR__ . '/js/app.js');
   ?>
-  <script type="module" src="bundles/app-<?= $hash ?>.js"></script>
+  <script type="module" src="bundle.php?hash=<?= $hash ?>"></script>
 </body>
 
 </html>
