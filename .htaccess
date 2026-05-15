@@ -1,6 +1,5 @@
 Options -Indexes
 RewriteEngine On
-RewriteBase /
 
 # Pass Authorization header to PHP (Apache strips it by default with CGI/FastCGI)
 RewriteRule .* - [E=HTTP_AUTHORIZATION:%{HTTP:Authorization}]
@@ -15,7 +14,7 @@ RewriteRule .* - [E=HTTP_AUTHORIZATION:%{HTTP:Authorization}]
 # API → api/index.php
 RewriteCond %{REQUEST_FILENAME} !-f
 RewriteCond %{REQUEST_FILENAME} !-d
-RewriteRule ^api/(.*)$ api/index.php [L,QSA]
+RewriteRule ^api/(.*)$ api/$1 [L,QSA]
 
 # Archivos estáticos en public/ (css, js, img, fonts)
 RewriteCond %{REQUEST_FILENAME} !-f
