@@ -1,17 +1,14 @@
 Options -Indexes
 RewriteEngine On
 
-# Pass Authorization header to PHP (Apache strips it by default with CGI/FastCGI)
+# Pass Authorization header to PHP
 RewriteRule .* - [E=HTTP_AUTHORIZATION:%{HTTP:Authorization}]
 
-# Archivos estáticos - redirigir a public/
+# Archivos estáticos
 RewriteRule ^(css|js|img|fonts)/(.*)$ public/$1/$2 [L]
-
-# Bundles de JS (con hash)
-RewriteRule ^bundles/(.*)$ public/bundle.php [L]
 
 # API
 RewriteRule ^api/(.*)$ api/index.php [L,QSA]
 
-# SPA - todo lo demas
+# SPA
 RewriteRule ^(.*)$ public/index.php [L]

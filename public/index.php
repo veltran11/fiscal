@@ -38,45 +38,7 @@ $cssVersion = file_exists($cssFile) ? filemtime($cssFile) : time();
     <main id="view-outlet" class="p-4 flex-1 overflow-hidden"></main>
   </div>
 
-  <?php
-  // El hash se calcula igual que en bundle.php para que coincidan
-  $jsDir = __DIR__ . '/js';
-  $files = [
-    'utils/EventBus.js',
-    'services/ApiService.js',
-    'services/AuthService.js',
-    'components/Component.js',
-    'components/Navbar.js',
-    'router/Router.js',
-    'views/BaseView.js',
-    'views/LoginView.js',
-    'views/RegisterView.js',
-    'views/OlvideView.js',
-    'views/DashboardView.js',
-    'views/MiCuentaView.js',
-    'views/ClientesView.js',
-    'views/ClienteState.js',
-    'views/ClienteFormView.js',
-    'views/FacturasView.js',
-    'views/FacturaState.js',
-    'views/FacturaFormView.js',
-    'views/CertificadosView.js',
-    'app.js',
-  ];
-  $bundle = '';
-  foreach ($files as $file) {
-    $path = $jsDir . '/' . $file;
-    if (file_exists($path)) {
-      $content = file_get_contents($path);
-      $content = preg_replace("/^import\s+.*?from\s+['\"].*?['\"];?\s*$/m", '', $content);
-      $content = preg_replace('/^export\s+/m', '', $content);
-      $content = str_replace("import.meta.url", "window.location.origin + '/api'", $content);
-      $bundle .= trim($content) . "\n\n";
-    }
-  }
-  $hash = md5($bundle);
-  ?>
-  <script type="module" src="bundle.php?hash=<?= $hash ?>"></script>
+  <script type="module" src="js/app.js?v=<?= $version ?>"></script>
 </body>
 
 </html>
