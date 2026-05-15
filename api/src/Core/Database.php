@@ -15,7 +15,7 @@ class Database
     public static function getInstance(): PDO
     {
         if (self::$instance === null) {
-            $cfg = require __DIR__ . '/../Config/config.php';
+            $cfg = self::getConfig();
             $db  = $cfg['db'];
 
             $dsn = "{$db['driver']}:host={$db['host']};port={$db['port']};dbname={$db['database']};charset={$db['charset']}";
@@ -34,5 +34,16 @@ class Database
         }
 
         return self::$instance;
+    }
+
+    private static function getConfig(): array
+    {
+        $cfg = require __DIR__ . '/../Config/config.php';
+        $localFile = __DIR__ . '/../Config/config.local.php';
+        if (file_exists($localFile)) {
+            $local = require $localFile;
+            $cfg = array_replace_recursive($cfg, $local);
+        }
+        return $cfg;
     }
 }
