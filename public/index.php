@@ -1,3 +1,9 @@
+<?php
+// Forzar no caché del HTML principal
+header('Cache-Control: no-cache, no-store, must-revalidate');
+header('Pragma: no-cache');
+header('Expires: 0');
+?>
 <!DOCTYPE html>
 <html lang="es">
 
@@ -9,7 +15,7 @@
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link href="https://fonts.googleapis.com/css2?family=Montserrat:wght@400;500;600;700&display=swap" rel="stylesheet">
   <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.7.2/css/all.min.css" />
-  <link rel="stylesheet" href="css/out.css" />
+  <link rel="stylesheet" href="css/out.css?v=<?= filemtime(__DIR__ . '/css/out.css') ?: time() ?>" />
 </head>
 
 <body class="bg-gray-100 h-dvh">
